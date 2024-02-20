@@ -10,6 +10,7 @@ use walkdir::WalkDir;
 
 const ORIGIN: &str = "https://lndev.nl";
 const OUT_DIR: &str = "out";
+const DIST_DIR: &str = "dist";
 const PUBLIC_DIR: &str = "public";
 const POSTS_DIR: &str = "posts";
 const DRAFTS_DIR: &str = "drafts";
@@ -86,9 +87,7 @@ fn main() -> Result<()> {
     fs::create_dir_all(&blogdir)?;
     fs::write(blogdir.join("index.html"), blog.render()?)?;
     let draft_blog = Blog {
-        description: String::from(
-            "Currently unfinished drafts",
-        ),
+        description: String::from("Currently unfinished drafts"),
         page_title: String::from("lndev - drafts"),
         posts: drafts,
     };
