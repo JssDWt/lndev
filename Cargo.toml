@@ -11,6 +11,7 @@ askama = "0.12.1"
 estimated_read_time = "1.0.0"
 gray_matter = "0.2.6"
 markdown = "1.0.0-alpha.16"
+minify-html = "0.15.0"
 serde = { version = "1.0.196", features = ["derive"] }
 url = "2.5.0"
 walkdir = "2.4.0"

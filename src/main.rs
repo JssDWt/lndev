@@ -1,16 +1,16 @@
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use askama::Template;
 use estimated_read_time::Options;
 use gray_matter::engine::YAML;
 use gray_matter::Matter;
+use minify_html::{minify, Cfg};
 use serde::Deserialize;
-use std::{fs, io, path::Path};
+use std::{fs, path::Path};
 
 use walkdir::WalkDir;
 
 const ORIGIN: &str = "https://lndev.nl";
 const OUT_DIR: &str = "out";
-const DIST_DIR: &str = "dist";
 const PUBLIC_DIR: &str = "public";
 const POSTS_DIR: &str = "posts";
 const DRAFTS_DIR: &str = "drafts";
@@ -21,9 +21,7 @@ struct Post {
     matter: PostMatter,
     page_title: String,
     content: String,
-    slug: String,
     path: String,
-    origin: String,
     full_url: String,
     full_image_url: String,
     reading_time: String,
@@ -33,7 +31,6 @@ struct Post {
     facebook: Social,
     whatsapp: Social,
     telegram: Social,
-    nostr: Social,
 }
 
 #[derive(Clone)]
@@ -72,8 +69,7 @@ fn main() -> Result<()> {
     for post in all_posts {
         let html = post.render()?;
         let path = Path::new(OUT_DIR).join(&post.path.trim_start_matches("/"));
-        fs::create_dir_all(&path)?;
-        fs::write(path.join("index.html"), html)?;
+        write_file(&path.join("index.html"), html)?;
     }
 
     let blog = Blog {
@@ -84,18 +80,70 @@ fn main() -> Result<()> {
         posts,
     };
     let blogdir = Path::new(OUT_DIR).join("blog");
-    fs::create_dir_all(&blogdir)?;
-    fs::write(blogdir.join("index.html"), blog.render()?)?;
+    write_file(&blogdir.join("index.html"), blog.render()?)?;
     let draft_blog = Blog {
         description: String::from("Currently unfinished drafts"),
         page_title: String::from("lndev - drafts"),
         posts: drafts,
     };
     let draftdir = Path::new(OUT_DIR).join("drafts");
-    fs::create_dir_all(&draftdir)?;
-    fs::write(draftdir.join("index.html"), draft_blog.render()?)?;
+
+    write_file(&draftdir.join("index.html"), draft_blog.render()?)?;
 
     Ok(())
+}
+
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            copy_file(&entry.path(), &dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+fn copy_file(from: &Path, to: &Path) -> Result<()> {
+    let content = fs::read(from)?;
+    write_file(to, &content)?;
+    Ok(())
+}
+fn write_file<C>(path: &Path, contents: C) -> Result<()>
+where
+    C: AsRef<[u8]>,
+{
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let mut modified: Option<Vec<u8>> = None;
+    if let Some(extension) = path.extension() {
+        modified = match extension.to_str().unwrap() {
+            "html" => Some(minify_html(contents.as_ref())),
+            // "css" => minify_css(contents)?,
+            _ => None,
+        };
+    }
+    if let Some(modified) = modified {
+        fs::write(path, modified)?;
+    } else {
+        fs::write(path, contents)?;
+    }
+
+    Ok(())
+}
+
+fn minify_html(contents: &[u8]) -> Vec<u8> {
+    let cfg = Cfg {
+        do_not_minify_doctype: true,
+        ensure_spec_compliant_unquoted_attribute_values: true,
+        keep_spaces_between_attributes: true,
+        keep_closing_tags: true,
+        ..Cfg::default()
+    };
+    minify(contents, &cfg)
 }
 
 fn collect_posts(dir: impl AsRef<Path>) -> Result<Vec<Post>> {
@@ -148,10 +196,8 @@ fn get_post(relative_path: &Path) -> Result<Post> {
         page_title: String::from("lndev - ") + &parsed.data.title,
         content,
         path,
-        slug,
         full_url,
         full_image_url: origin.clone() + &parsed.data.cover.image,
-        origin,
         reading_time: format!("{} min read", read_time_seconds),
         twitter: Social {
             url: format!(
@@ -180,23 +226,5 @@ fn get_post(relative_path: &Path) -> Result<Post> {
             url: format!("https://telegram.me/share/url?text={}&url={}", encoded_title, encoded_url),
             label: lbl("Telegram"),
         },
-        nostr: Social {
-            url: String::from("#"),
-            label: lbl("Nostr")
-        },
     })
-}
-
-fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
-    fs::create_dir_all(&dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        if ty.is_dir() {
-            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        } else {
-            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        }
-    }
-    Ok(())
 }
