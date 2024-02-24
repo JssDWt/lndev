@@ -147,14 +147,16 @@ fn minify_html(contents: &[u8]) -> Vec<u8> {
 }
 
 fn collect_posts(dir: impl AsRef<Path>) -> Result<Vec<Post>> {
-    WalkDir::new(dir)
+    let mut posts = WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .filter_map(|e| e.path().to_str().map(|e| String::from(e)))
         .filter(|e| e.ends_with(".md"))
         .map(|p| get_post(Path::new(&p)))
-        .collect::<Result<Vec<Post>>>()
+        .collect::<Result<Vec<Post>>>()?;
+    posts.sort_by(|a, b| b.matter.date.cmp(&a.matter.date));
+    Ok(posts)
 }
 
 fn get_post(relative_path: &Path) -> Result<Post> {
