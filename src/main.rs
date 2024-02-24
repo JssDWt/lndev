@@ -185,6 +185,11 @@ fn get_post(relative_path: &Path) -> Result<Post> {
     let content = markdown::to_html(&parsed.content);
     let read_time_seconds =
         estimated_read_time::text(&parsed.content, &Options::new().build().unwrap()).seconds();
+    let read_time = if read_time_seconds < 60 {
+        format!("{} sec read", read_time_seconds)
+    } else {
+        format!("{} min read", read_time_seconds / 60)
+    };
     let encoded_title: String =
         url::form_urlencoded::byte_serialize(parsed.data.title.as_bytes()).collect();
     let encoded_url: String = url::form_urlencoded::byte_serialize(full_url.as_bytes()).collect();
@@ -198,7 +203,7 @@ fn get_post(relative_path: &Path) -> Result<Post> {
         path,
         full_url,
         full_image_url: origin.clone() + &parsed.data.cover.image,
-        reading_time: format!("{} min read", read_time_seconds),
+        reading_time: read_time,
         twitter: Social {
             url: format!(
                 "https://x.com/intent/tweet/?text={}&url={}&hashtags={}",
