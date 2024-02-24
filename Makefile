@@ -6,7 +6,7 @@ build: clean
 
 format: 
 	cargo fmt
-	npx prettier -w **/*.html
+	npx prettier -w **/*.{css,html,js,json,md}
 
 clean:
 	rm -rf ./out
