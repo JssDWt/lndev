@@ -58,6 +58,7 @@ struct CoverMatter {
 struct Blog {
     description: String,
     page_title: String,
+    full_url: String,
     posts: Vec<Post>,
 }
 
@@ -77,13 +78,15 @@ fn main() -> Result<()> {
             "Where insights are shared on development on the lightning network.",
         ),
         page_title: String::from("lndev - blog"),
+        full_url: String::from(ORIGIN),
         posts,
     };
-    let blogdir = Path::new(OUT_DIR).join("blog");
+    let blogdir = Path::new(OUT_DIR);
     write_file(&blogdir.join("index.html"), blog.render()?)?;
     let draft_blog = Blog {
         description: String::from("Currently unfinished drafts"),
         page_title: String::from("lndev - drafts"),
+        full_url: String::from(ORIGIN) + "/drafts",
         posts: drafts,
     };
     let draftdir = Path::new(OUT_DIR).join("drafts");
